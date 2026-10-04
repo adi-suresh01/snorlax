@@ -10,6 +10,12 @@ describe("pickModel", () => {
     expect(pickModel(["whisper-large-v3", "meta-llama/llama-guard-4-12b", "playai-tts", "some-new-chat-model"])).toBe("some-new-chat-model");
   });
 
+  it("picks gpt-oss-120b from the current Groq free-tier list, never safeguard models", () => {
+    const groq = ["allam-2-7b", "openai/gpt-oss-safeguard-20b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
+    expect(pickModel(groq)).toBe("openai/gpt-oss-120b");
+    expect(pickModel(["openai/gpt-oss-safeguard-20b", "qwen/qwen3.8-27b"])).toBe("qwen/qwen3.8-27b");
+  });
+
   it("returns null when nothing usable is listed", () => {
     expect(pickModel(["whisper-large-v3-turbo"])).toBeNull();
   });

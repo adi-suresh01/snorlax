@@ -203,3 +203,11 @@ export function ensureReplyPoller() {
     }
   }, 20_000);
 }
+
+// The poller lives on globalThis, so after a dev hot reload it would keep calling the previous
+// module's functions. Replace it so it always runs the current code.
+if (state.poller) {
+  clearInterval(state.poller);
+  state.poller = undefined;
+  ensureReplyPoller();
+}

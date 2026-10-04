@@ -24,7 +24,7 @@ const PREFERRED = [
   "openai/gpt-oss-20b",
   "llama-3.1-8b-instant",
 ];
-const NOT_CHAT = /whisper|tts|guard|prompt-guard|orpheus|distil|embed|vision-only|compound/i;
+const NOT_CHAT = /whisper|tts|guard|orpheus|distil|embed|vision-only|compound|allam/i;
 
 export function pickModel(available: string[]): string | null {
   for (const id of PREFERRED) if (available.includes(id)) return id;

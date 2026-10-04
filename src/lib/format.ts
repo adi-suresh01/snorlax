@@ -32,5 +32,6 @@ export function stripDashes(text: string): string {
     .replace(/(\d[kK]?)\s*[–—]\s*(\$?\d)/g, "$1 to $2")
     .replace(/\s*—\s*/g, ", ")
     .replace(/\s*–\s*/g, ", ")
+    .replace(/[‐‑]/g, "-") // non-breaking/unicode hyphens some models emit
     .replace(/,\s*,/g, ",");
 }
