@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-ivory: #fbf7f1;
+  --color-cream: #f4ece0;
+  --color-sand: #e7dccb;
+  --color-ink: #2a1f24;
+  --color-muted: #7a6a70;
+  --color-plum: #6b2d4a;
+  --color-plum-dark: #4f1f36;
+  --color-rose: #c97b84;
+  --color-gold: #b88a3b;
+  --color-sage: #6f8f72;
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-cormorant);
+}
+
+body {
+  background: var(--color-ivory);
+  color: var(--color-ink);
+}
+
+.card {
+  @apply rounded-2xl border border-sand bg-white/80 shadow-[0_1px_0_rgba(42,31,36,0.04),0_8px_24px_-12px_rgba(42,31,36,0.12)];
+}
+
+.input {
+  @apply w-full rounded-xl border border-sand bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-plum focus:ring-2 focus:ring-plum/15;
+}
+
+.label {
+  @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-plum px-5 py-2.5 text-sm font-semibold text-ivory transition hover:bg-plum-dark disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-sand bg-white px-4 py-2 text-sm font-medium text-ink transition hover:border-plum/40 hover:text-plum disabled:opacity-50;
+}
+
+@keyframes snooze {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+.snooze {
+  animation: snooze 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snooze { animation: none; }
+}
