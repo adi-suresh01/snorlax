@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import { getInbox, listReceived } from "../src/lib/agentmail";
-import { chatJSON } from "../src/lib/llm";
+import { chatJSON, llmName } from "../src/lib/llm";
 
 type Check = [name: string, fn: () => Promise<string>];
 
@@ -35,14 +35,14 @@ const checks: Check[] = [
     },
   ],
   [
-    "Gemma",
+    "LLM",
     async () => {
       const out = await chatJSON<{ price: number }>(
         "Reply ONLY with JSON.",
-        'Email: "Our package is ₹2,50,000 all inclusive." Return {"price": number}',
+        'Email: "Our full-day package is $4,800, all inclusive." Return {"price": number}',
         { maxTokens: 50 },
       );
-      return `extracted price ${out.price}`;
+      return `${llmName()} extracted price ${out.price}`;
     },
   ],
 ];

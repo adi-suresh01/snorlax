@@ -47,7 +47,7 @@ export default async function Home() {
           ))}
         </div>
       </section>
-      <footer className="py-6 text-xs text-muted">Built with Exa · AgentMail · Neon · Gemma</footer>
+      <footer className="py-6 text-xs text-muted">Built with Exa · AgentMail · Neon · Groq</footer>
     </main>
   );
 }

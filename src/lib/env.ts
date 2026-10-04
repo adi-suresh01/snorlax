@@ -24,10 +24,11 @@ export const env = {
       .filter(Boolean);
   },
   get llmBaseUrl() {
-    return process.env.LLM_BASE_URL || "http://localhost:8080/v1";
+    return process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1";
   },
+  /** Empty means "pick the best available model from the provider's /models list". */
   get llmModel() {
-    return process.env.LLM_MODEL || "gemma4-26b-a4b";
+    return process.env.LLM_MODEL || "";
   },
   get llmApiKey() {
     return process.env.LLM_API_KEY || "";

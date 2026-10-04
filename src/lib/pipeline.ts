@@ -5,6 +5,7 @@ import { env } from "./env";
 import { enrichVendor, researchVendors } from "./exa";
 import { fetchOgImage } from "./images";
 import { formatMoney } from "./format";
+import { llmName } from "./llm";
 import * as repo from "./repo";
 import { pickShortlist, scoreVendor } from "./scoring";
 
@@ -111,7 +112,7 @@ async function runPipeline(requestId: string) {
         await repo.markContacted(v.id, to, res.thread_id);
         await repo.insertMessage(v.id, "out", res.message_id, subject, text);
         sent++;
-        await log("outreach", `Emailed ${v.name} (${draft.usedLlm ? "written by Gemma" : "template"}) → ${to}`);
+        await log("outreach", `Emailed ${v.name} (${draft.usedLlm ? `written by ${llmName()}` : "template"}) → ${to}`);
       } catch (err) {
         await repo.setVendorStatus(v.id, "send_failed");
         await log("outreach", `Could not email ${v.name}: ${(err as Error).message}`);
@@ -175,7 +176,7 @@ export async function checkReplies(): Promise<number> {
           const sent = await replyToMessage(m.message_id, draft.text);
           await repo.insertMessage(vendor.id, "out", sent.message_id, `Re: ${full.subject ?? ""}`, draft.text);
           await repo.setVendorQuote(vendor.id, "countered", { ...quote, counter_price: target });
-          await log(`Countered ${vendor.name} at ${formatMoney(target, currency)} (${draft.usedLlm ? "Gemma" : "template"})`);
+          await log(`Countered ${vendor.name} at ${formatMoney(target, currency)} (${draft.usedLlm ? llmName() : "template"})`);
         } else {
           await log(`${vendor.name}'s quote is already well within budget, so no counter needed`);
         }
