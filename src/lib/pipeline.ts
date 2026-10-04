@@ -1,10 +1,10 @@
 import { listReceived, getMessage, replyToMessage, sendMessage } from "./agentmail";
 import { describeRequirements, getCategory } from "./categories";
-import { coupleName, counterTarget, draftCounter, draftQuoteRequest, extractQuote } from "./emails";
+import { coupleProse, counterTarget, draftCounter, draftQuoteRequest, extractQuote } from "./emails";
 import { env } from "./env";
 import { enrichVendor, researchVendors } from "./exa";
 import { fetchOgImage } from "./images";
-import { formatMoney } from "./money";
+import { formatMoney } from "./format";
 import * as repo from "./repo";
 import { pickShortlist, scoreVendor } from "./scoring";
 
@@ -53,7 +53,7 @@ async function runPipeline(requestId: string) {
       },
       (m) => log("research", m),
     );
-    if (!found.length) throw new Error("No vendors found for this city — try broadening the requirements");
+    if (!found.length) throw new Error("No vendors found for this city. Try loosening the requirements a bit.");
     await log("research", `Reviewed ${found.length} candidates: ${found.map((v) => v.name).join(", ")}`);
 
     // 2. Shortlist
@@ -83,7 +83,7 @@ async function runPipeline(requestId: string) {
       `Shortlisted ${saved.map((v) => `${v.name} (${v.score})`).join(", ")} on rating, reviews, budget fit and portfolio`,
     );
 
-    // 3. Outreach — demo mode routes every email to the team's inboxes.
+    // 3. Outreach. Demo mode routes every email to the team inboxes instead of real vendors.
     const demo = env.demoVendorEmails;
     let sent = 0;
     for (const [i, v] of saved.entries()) {
@@ -102,12 +102,14 @@ async function runPipeline(requestId: string) {
         vendorNotes: [v.style, v.review_summary].filter(Boolean).join(". ") || v.fit_notes,
       });
       const text = demo.length
-        ? `${draft.text}\n\n—\n(Demo mode: this email was meant for ${v.name}${v.email ? ` <${v.email}>` : ""}. Reply as the vendor to test negotiation.)`
+        ? `${draft.text}\n\n---\nDemo note: this email was meant for ${v.name}${v.email ? ` (${v.email})` : ""}. Reply as the vendor with a price to test the negotiation.`
         : draft.text;
+      // Demo inboxes receive every vendor's email; tag the subject so each lands in its own Gmail thread.
+      const subject = demo.length ? `[${v.name}] ${draft.subject}` : draft.subject;
       try {
-        const res = await sendMessage(to, draft.subject, text);
+        const res = await sendMessage(to, subject, text);
         await repo.markContacted(v.id, to, res.thread_id);
-        await repo.insertMessage(v.id, "out", res.message_id, draft.subject, text);
+        await repo.insertMessage(v.id, "out", res.message_id, subject, text);
         sent++;
         await log("outreach", `Emailed ${v.name} (${draft.usedLlm ? "written by Gemma" : "template"}) → ${to}`);
       } catch (err) {
@@ -146,7 +148,7 @@ export async function checkReplies(): Promise<number> {
       const body = (full.extracted_text || full.text || full.preview || "").trim();
       await repo.insertMessage(vendor.id, "in", m.message_id, full.subject ?? null, body);
       handled++;
-      await log(`${vendor.name} replied — reading their quote…`);
+      await log(`${vendor.name} replied. Reading their quote…`);
 
       const quote = await extractQuote(body, wedding.currency);
       const currency = quote.currency || wedding.currency;
@@ -164,7 +166,7 @@ export async function checkReplies(): Promise<number> {
         if (target < quote.price) {
           const draft = await draftCounter({
             vendorName: vendor.name,
-            couple: coupleName(wedding),
+            couple: coupleProse(wedding),
             quotePrice: quote.price,
             counterPrice: target,
             currency,
@@ -175,7 +177,7 @@ export async function checkReplies(): Promise<number> {
           await repo.setVendorQuote(vendor.id, "countered", { ...quote, counter_price: target });
           await log(`Countered ${vendor.name} at ${formatMoney(target, currency)} (${draft.usedLlm ? "Gemma" : "template"})`);
         } else {
-          await log(`${vendor.name}'s quote is already well within budget — no counter needed`);
+          await log(`${vendor.name}'s quote is already well within budget, so no counter needed`);
         }
       }
 

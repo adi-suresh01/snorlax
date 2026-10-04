@@ -1,6 +1,6 @@
 import { describeRequirements, type CategoryConfig } from "./categories";
 import { chatJSON, chatText } from "./llm";
-import { formatMoney, roundNice } from "./money";
+import { formatEventDate, formatMoney, roundNice, stripDashes } from "./format";
 import type { Quote, Requirements, Wedding } from "./types";
 
 export const ANCHOR_RATIO = 0.85;
@@ -12,70 +12,87 @@ export type QuoteRequestInput = {
   requirements: Requirements;
   budget: number | null;
   vendorName: string;
-  /** What research said about this vendor; used to personalise the opener. */
+  /** What research said about this vendor; used to personalize the opener. */
   vendorNotes?: string | null;
 };
 
+/** "Emma & James" for headings and subjects. */
 export const coupleName = (w: Wedding) => [w.partner1, w.partner2].filter(Boolean).join(" & ");
+/** "Emma and James" for sentences. */
+export const coupleProse = (w: Wedding) => [w.partner1, w.partner2].filter(Boolean).join(" and ");
 
-export function quoteSubject(input: QuoteRequestInput): string {
-  return `Quote request: ${input.category.label} for ${coupleName(input.wedding)}'s wedding — ${input.vendorName}`;
+const signature = (couple: string) => `Snorlax\nPlanning assistant for ${couple}`;
+
+/** The main day: the event with the most guests. */
+function mainDate(w: Wedding): string | null {
+  const main = [...w.events].sort((a, b) => b.guests - a.guests)[0];
+  return main?.date ? formatEventDate(main.date) : null;
 }
 
-/** The factual block every quote request carries, regardless of who wrote the opener. */
-export function detailsBlock({ wedding, category, requirements, budget }: QuoteRequestInput): string {
-  const events = wedding.events
-    .map((e) => `  • ${e.name} — ${e.date || "date TBC"} at ${e.venue || "venue TBC"} (${e.guests} guests)`)
-    .join("\n");
-  const reqs = describeRequirements(category, requirements)
-    .map((l) => `  • ${l}`)
-    .join("\n");
-  const anchor = budget ? roundNice(budget * ANCHOR_RATIO) : null;
+export function quoteSubject({ wedding, category }: QuoteRequestInput): string {
+  const date = mainDate(wedding);
+  return `Wedding ${category.label.toLowerCase()} inquiry for ${coupleName(wedding)}${date ? ` (${date})` : ""}`;
+}
 
+function eventLine(e: Wedding["events"][number]): string {
+  const when = e.date ? ` on ${formatEventDate(e.date)}` : "";
+  const where = e.venue ? ` at ${e.venue}` : "";
+  return `- ${e.name}${when}${where} (${e.guests} guests)${e.date ? "" : ", date TBD"}`;
+}
+
+/** Everything the vendor needs to quote. Always deterministic, whoever writes the opener. */
+export function detailsBlock({ wedding, category, requirements, budget }: QuoteRequestInput): string {
+  const reqs = describeRequirements(category, requirements, { includeEvents: false }).map((l) => `- ${l}`);
+  const anchor = budget ? roundNice(budget * ANCHOR_RATIO) : null;
+  const wanted = Array.isArray(requirements.events_to_cover) ? (requirements.events_to_cover as string[]) : [];
+  const events = wanted.length ? wedding.events.filter((e) => wanted.includes(e.name)) : wedding.events;
+  const eventsIntro = events.length === 1 ? "Here are the details:" : "Here's what the weekend looks like:";
   return [
-    `Couple: ${coupleName(wedding)}`,
-    `City: ${wedding.city}`,
-    `Events:\n${events || "  • Dates to be confirmed"}`,
-    `What we need (${category.label}):\n${reqs || "  • Open to your recommended package"}`,
-    anchor ? `Budget: we're planning around ${formatMoney(anchor, wedding.currency)} for this.` : null,
-    wedding.notes ? `Other notes: ${wedding.notes}` : null,
+    events.length ? `${eventsIntro}\n${events.map(eventLine).join("\n")}` : null,
+    reqs.length
+      ? `For ${category.label.toLowerCase()}, they're hoping for:\n${reqs.join("\n")}`
+      : `They're open to whatever package you'd recommend.`,
+    anchor
+      ? `They're thinking somewhere around ${formatMoney(anchor, wedding.currency)} for this, but we're happy to hear what you'd suggest.`
+      : null,
+    wedding.notes ? `A little more context: ${wedding.notes}` : null,
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-const ASKS = `Could you please share:
-  1. An itemized quote for the above
-  2. Your availability on these dates
-  3. What's included (hours, deliverables, travel, taxes)
-  4. A few links to similar weddings you've done`;
-
-const signOff = (w: Wedding) => `Warmly,\nSnorlax — wedding planning assistant for ${coupleName(w)}`;
+const ASK =
+  "Would you be able to send over pricing for this and let us know if you're available on those dates? " +
+  "It would also help to know what's included (hours, travel, taxes). And if you have a gallery from a similar wedding, we'd love to see it.";
 
 function assemble(input: QuoteRequestInput, opener: string): string {
-  return [`Hi ${input.vendorName} team,`, opener, `Here are the details:`, detailsBlock(input), ASKS, signOff(input.wedding)].join(
-    "\n\n",
-  );
+  const couple = coupleProse(input.wedding);
+  return [`Hi ${input.vendorName} team,`, opener, detailsBlock(input), ASK, `Thanks so much,\n${signature(couple)}`].join("\n\n");
 }
 
 export function templateQuoteRequest(input: QuoteRequestInput): { subject: string; text: string } {
-  const opener = `I'm helping ${coupleName(input.wedding)} plan their wedding in ${input.wedding.city}, and your work stood out while we were shortlisting ${input.category.vendorNoun}s. We'd love a quote.`;
-  return { subject: quoteSubject(input), text: assemble(input, opener) };
+  const opener = `I'm helping ${coupleProse(input.wedding)} plan their wedding in ${input.wedding.city}, and your work really stood out to us. We'd love to get a quote from you.`;
+  return { subject: quoteSubject(input), text: stripDashes(assemble(input, opener)) };
 }
 
-/** LLM writes a personalised opener; the facts block is always deterministic. Falls back to the template. */
+const VOICE =
+  "Write like a real person: plain, warm, conversational American English. Short sentences. " +
+  "Never use em dashes or en dashes. No clichés like 'stunning', 'breathtaking' or 'I hope this email finds you well'. No placeholders.";
+
+/** LLM writes a personalized opener; the facts block stays deterministic. Falls back to the template. */
 export async function draftQuoteRequest(input: QuoteRequestInput): Promise<{ subject: string; text: string; usedLlm: boolean }> {
   try {
     const opener = await chatText(
-      "You write short, warm, professional outreach emails for a wedding planner. Output only the paragraph, no greeting, no sign-off, no placeholders.",
-      `Write a 2-3 sentence opening paragraph to ${input.vendorName}, a ${input.category.vendorNoun}, asking for a quote for ${coupleName(input.wedding)}'s wedding in ${input.wedding.city}. ` +
-        (input.vendorNotes ? `Mention specifically what we liked about them: ${input.vendorNotes}. ` : "") +
-        `Do not mention prices or dates; those follow in a details section.`,
-      { maxTokens: 220, timeoutMs: 60_000 },
+      `You help a couple reach out to wedding vendors. ${VOICE} Output only the paragraph, no greeting and no sign-off.`,
+      `Write a 2 sentence opening paragraph to ${input.vendorName}, a ${input.category.vendorNoun}. ` +
+        `Say you're helping ${coupleProse(input.wedding)} plan their wedding in ${input.wedding.city} and would love a quote. ` +
+        (input.vendorNotes ? `Mention one specific thing we liked about them, based on this: ${input.vendorNotes}. ` : "") +
+        `Don't mention prices or dates; those come later in the email.`,
+      { maxTokens: 160, timeoutMs: 60_000 },
     );
-    const clean = opener.replace(/^["']|["']$/g, "").trim();
+    const clean = stripDashes(opener.replace(/^["']|["']$/g, "").trim());
     if (clean.length < 40 || /\[.*?\]/.test(clean)) throw new Error("weak opener");
-    return { subject: quoteSubject(input), text: assemble(input, clean), usedLlm: true };
+    return { subject: quoteSubject(input), text: stripDashes(assemble(input, clean)), usedLlm: true };
   } catch {
     return { ...templateQuoteRequest(input), usedLlm: false };
   }
@@ -97,21 +114,25 @@ export type CounterInput = {
 export function templateCounter(c: CounterInput): string {
   return [
     `Hi ${c.vendorName} team,`,
-    `Thank you so much for the detailed quote of ${formatMoney(c.quotePrice, c.currency)} — ${c.couple} really liked your work.`,
-    `We're comparing a few shortlisted options at the moment, and to make this work within their budget we'd like to propose ${formatMoney(c.counterPrice, c.currency)} for the same scope. If that's not possible, could you suggest which inclusions could be adjusted to get closer to that number?`,
-    `If we can agree on this, ${c.couple} are ready to move quickly to confirm the dates.`,
-    `Warmly,\nSnorlax — wedding planning assistant for ${c.couple}`,
+    `Thanks so much for getting back to us and for putting the quote together. ${c.couple} really like your work.`,
+    `We're comparing a couple of options right now, and ${formatMoney(c.quotePrice, c.currency)} is a bit above where they'd like to land. Would you be able to do ${formatMoney(c.counterPrice, c.currency)} for the same package? If that's a stretch, we're open to trimming a few things to get closer to that number.`,
+    `If the numbers work, they're ready to book soon.`,
+    `Thanks again,\n${signature(c.couple)}`,
   ].join("\n\n");
 }
 
 export async function draftCounter(c: CounterInput & { quote: Quote }): Promise<{ text: string; usedLlm: boolean }> {
   try {
-    const text = await chatText(
-      "You are a polite but firm wedding-planning negotiator writing an email reply. Output only the email body, starting with a greeting and ending with the sign-off 'Warmly,\\nSnorlax — wedding planning assistant for <couple>'. No placeholders.",
-      `Vendor: ${c.vendorName}\nCouple: ${c.couple}\nTheir quote: ${formatMoney(c.quotePrice, c.currency)}\nInclusions they listed: ${c.quote.inclusions.join("; ") || "not specified"}\nAvailability: ${c.quote.availability || "not stated"}\n\n` +
-        `Write a short reply (under 150 words) that thanks them, says we're comparing a few shortlisted vendors, and proposes exactly ${formatMoney(c.counterPrice, c.currency)} for the same scope. Offer flexibility on inclusions if they can't match. Say the couple can confirm quickly if agreed.`,
-      { maxTokens: 350, timeoutMs: 75_000 },
+    const raw = await chatText(
+      `You negotiate politely but firmly with wedding vendors over email on behalf of a couple. ${VOICE} ` +
+        `Output only the email body. Start with "Hi ${c.vendorName} team," and end with exactly:\nThanks again,\n${signature(c.couple)}`,
+      `Their quote: ${formatMoney(c.quotePrice, c.currency)}\nWhat they included: ${c.quote.inclusions.join("; ") || "not specified"}\nAvailability: ${c.quote.availability || "not stated"}\n\n` +
+        `Write a short reply (under 120 words). Thank them, mention one thing from their quote, say we're comparing a couple of options, ` +
+        `and ask if they could do exactly ${formatMoney(c.counterPrice, c.currency)} for the same package. ` +
+        `If that's a stretch, say we're open to trimming a few things. Say the couple is ready to book soon if the numbers work.`,
+      { maxTokens: 300, timeoutMs: 75_000 },
     );
+    const text = stripDashes(raw);
     const digits = text.replace(/[^0-9]/g, "");
     if (!digits.includes(String(c.counterPrice)) || /\[.*?\]/.test(text)) throw new Error("counter price missing");
     return { text, usedLlm: true };
@@ -120,32 +141,31 @@ export async function draftCounter(c: CounterInput & { quote: Quote }): Promise<
   }
 }
 
-/** Pull the first money-looking number out of an email: handles ₹3,00,000 / $4,500 / 3.5 lakh / 4k. */
+/** First money-looking number in an email: "$4,500", "4.5k", "USD 4500", "4,500 dollars". */
 export function regexPrice(text: string): number | null {
-  const lakh = text.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lac|L)\b/i);
-  if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
-  const money = text.match(/(?:₹|rs\.?|inr|\$|usd)\s*([\d,]+(?:\.\d+)?)\s*(k)?/i);
-  if (money) {
-    const n = parseFloat(money[1].replace(/,/g, ""));
-    return Math.round(money[2] ? n * 1000 : n);
-  }
-  return null;
+  const m =
+    text.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i) ||
+    text.match(/usd\s*([\d,]+(?:\.\d+)?)\s*(k)?\b/i) ||
+    text.match(/([\d,]+(?:\.\d+)?)\s*(k)?\s*(?:dollars|usd)\b/i);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? Math.round(m[2] ? n * 1000 : n) : null;
 }
 
-export async function extractQuote(emailText: string, defaultCurrency: string): Promise<Quote> {
+export async function extractQuote(emailText: string, defaultCurrency = "USD"): Promise<Quote> {
   try {
     const q = await chatJSON<Partial<Quote>>(
       "You extract structured quote data from vendor emails. Reply ONLY with JSON.",
       `Email from a wedding vendor:\n"""\n${emailText.slice(0, 4000)}\n"""\n\n` +
-        `Return {"price": number|null (the total price they are offering now, as a plain number, convert lakh to full number), "currency": string|null (ISO code), "inclusions": string[], "availability": string|null, "notes": string|null (one sentence summary of anything else important)}`,
+        `Return {"price": number|null (the total price they are offering now, as a plain number), "currency": string|null (ISO code), "inclusions": string[], "availability": string|null, "notes": string|null (one sentence on anything else important)}`,
       { maxTokens: 400, timeoutMs: 75_000 },
     );
     return {
       price: typeof q.price === "number" && q.price > 0 ? q.price : regexPrice(emailText),
       currency: q.currency || defaultCurrency,
-      inclusions: Array.isArray(q.inclusions) ? q.inclusions.map(String) : [],
-      availability: q.availability ?? null,
-      notes: q.notes ?? null,
+      inclusions: Array.isArray(q.inclusions) ? q.inclusions.map((x) => stripDashes(String(x))) : [],
+      availability: q.availability ? stripDashes(q.availability) : null,
+      notes: q.notes ? stripDashes(q.notes) : null,
     };
   } catch {
     return { price: regexPrice(emailText), currency: defaultCurrency, inclusions: [], availability: null, notes: null };

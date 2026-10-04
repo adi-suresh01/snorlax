@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getCategory, type Field } from "@/lib/categories";
-import { formatMoney } from "@/lib/money";
+import { formatMoney } from "@/lib/format";
 import type { CategoryRequest, Message, Requirements, Vendor, Wedding } from "@/lib/types";
 import { StatusChip } from "./StatusChip";
 import { VendorCard } from "./VendorCard";
@@ -115,8 +115,8 @@ export function CategoryView({ slug, wedding, initial }: { slug: string; wedding
                   <FieldInput key={f.key} field={f} value={requirements[f.key]} onChange={(v) => set(f.key, v)} />
                 ))}
                 <div>
-                  <label className="label" htmlFor="budget">Budget for {category.label.toLowerCase()} ({wedding.currency})</label>
-                  <input id="budget" className="input" type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={wedding.currency === "INR" ? "400000" : "5000"} />
+                  <label className="label" htmlFor="budget">Budget for {category.label.toLowerCase()} ($)</label>
+                  <input id="budget" className="input" type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="8000" />
                 </div>
               </div>
 

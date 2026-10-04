@@ -30,7 +30,7 @@ export const PUT = handle(async (req: Request) => {
     partner1,
     partner2,
     city,
-    currency: body.currency === "USD" ? "USD" : "INR",
+    currency: "USD",
     events,
     notes: String(body.notes || "").trim(),
   });

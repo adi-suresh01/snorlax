@@ -10,7 +10,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Snorlax — your wedding planning agent",
+  title: "Snorlax | Your wedding planning agent",
   description: "Snorlax finds, shortlists and negotiates with wedding vendors so you don't have to.",
 };
 

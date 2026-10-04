@@ -13,7 +13,7 @@ create table if not exists weddings (
   partner1 text not null default '',
   partner2 text not null default '',
   city text not null default '',
-  currency text not null default 'INR',
+  currency text not null default 'USD',
   events jsonb not null default '[]',
   notes text not null default '',
   updated_at timestamptz not null default now()
@@ -74,3 +74,6 @@ create table if not exists messages (
 );
 
 create index if not exists messages_vendor_idx on messages(vendor_id);
+
+alter table weddings alter column currency set default 'USD';
+update weddings set currency = 'USD' where currency <> 'USD';

@@ -1,4 +1,5 @@
 import { env } from "./env";
+import { stripDashes } from "./format";
 import type { ResearchedVendor, Source } from "./types";
 
 const EXA = "https://api.exa.ai";
@@ -47,8 +48,8 @@ const vendorSchema = {
           email: { type: "string", format: "email" },
           phone: { type: "string", format: "phone" },
           location: { type: "string" },
-          price_estimate: { type: "string", description: "Published or reported pricing, as written, e.g. '₹1.5L–3L per day'" },
-          starting_price: { type: "number", description: "Lowest package price as a plain number in the local currency" },
+          price_estimate: { type: "string", description: "Published or reported pricing in plain words, e.g. 'Packages from $3,500 to $6,000'" },
+          starting_price: { type: "number", description: "Lowest package price in US dollars as a plain number" },
           rating: { type: "number", description: "Average review rating out of 5" },
           review_count: { type: "integer" },
           review_summary: { type: "string", description: "What reviewers praise or criticise, 1-2 sentences" },
@@ -79,7 +80,7 @@ function buildTask(ctx: ResearchContext): string {
   const needs = ctx.requirementLines.length ? ` Requirements: ${ctx.requirementLines.join("; ")}.` : "";
   return (
     `Find the best ${ctx.vendorNoun}s that serve ${ctx.city} for a wedding${when}.${needs}${budget} ` +
-    `Compare many options using reviews (Google, WedMeGood, WeddingWire, The Knot, Zola), their Instagram portfolios and their websites. ` +
+    `Compare many options using reviews (The Knot, WeddingWire, Zola, Google, Yelp), their Instagram portfolios and their websites. ` +
     `Prefer well-reviewed vendors with active portfolios whose pricing fits the budget. For each, capture contact details and pricing.`
   );
 }
@@ -88,7 +89,24 @@ const systemPrompt =
   "Only include real, currently operating vendors that serve the stated city. Never invent contact details, ratings or prices: leave a field out when it cannot be verified from a page. Deduplicate vendors that appear on multiple directories.";
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+/** Free text shown to users: same as str, minus em/en dashes. */
+const prose = (v: unknown) => {
+  const s = str(v);
+  return s ? stripDashes(s) : null;
+};
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/** "Double Knot Pictures | Photo + Video" → "Double Knot Pictures". Hyphenated words stay intact. */
+export function cleanVendorName(name: string): string {
+  const head = name.split(/\s+[|•·–—-]\s+/)[0].trim();
+  return head || name.trim();
+}
+
+/** Page titles for source links: single line, no em/en dashes. */
+export function cleanTitle(title: string | undefined): string | undefined {
+  if (!title) return undefined;
+  return stripDashes(title.replace(/\s+/g, " ").trim()).replace(/^,\s*/, "");
+}
 
 function normalizeInstagram(v: string | null): string | null {
   if (!v) return null;
@@ -98,7 +116,8 @@ function normalizeInstagram(v: string | null): string | null {
 }
 
 export function toResearchedVendor(raw: RawVendor, fallbackSources: Source[]): ResearchedVendor | null {
-  const name = str(raw.name);
+  const rawName = str(raw.name);
+  const name = rawName ? cleanVendorName(rawName) : null;
   if (!name) return null;
   const sources = (raw.source_urls || []).filter((u) => typeof u === "string").map((url) => ({ url }));
   return {
@@ -107,15 +126,15 @@ export function toResearchedVendor(raw: RawVendor, fallbackSources: Source[]): R
     instagram: normalizeInstagram(str(raw.instagram)),
     email: str(raw.email),
     phone: str(raw.phone),
-    location: str(raw.location),
-    price_estimate: str(raw.price_estimate),
+    location: prose(raw.location),
+    price_estimate: prose(raw.price_estimate),
     price_low: num(raw.starting_price),
     rating: num(raw.rating),
     review_count: num(raw.review_count),
-    review_summary: str(raw.review_summary),
-    style: str(raw.style),
+    review_summary: prose(raw.review_summary),
+    style: prose(raw.style),
     images: (raw.portfolio_image_urls || []).filter((u) => typeof u === "string" && u.startsWith("http")),
-    fit_notes: str(raw.fit_notes),
+    fit_notes: prose(raw.fit_notes),
     sources: sources.length ? sources : fallbackSources.slice(0, 3),
   };
 }
@@ -129,7 +148,7 @@ function collectSources(node: unknown, out: Source[] = []): Source[] {
   }
   const obj = node as Record<string, unknown>;
   if (typeof obj.url === "string" && !out.some((s) => s.url === obj.url)) {
-    out.push({ url: obj.url, title: typeof obj.title === "string" ? obj.title : undefined });
+    out.push({ url: obj.url, title: typeof obj.title === "string" ? cleanTitle(obj.title) : undefined });
   }
   Object.values(obj).forEach((v) => collectSources(v, out));
   return out;
@@ -197,7 +216,7 @@ async function searchResearch(ctx: ResearchContext, type: "deep" | "auto"): Prom
   const data = await res.json();
   const structured = data.output?.content ?? data.output?.structured ?? data.output;
   const parsed = typeof structured === "string" ? JSON.parse(structured) : structured;
-  const fallback = (data.results || []).map((r: { url: string; title?: string }) => ({ url: r.url, title: r.title }));
+  const fallback = (data.results || []).map((r: { url: string; title?: string }) => ({ url: r.url, title: cleanTitle(r.title) }));
   const vendors = parseVendors(parsed, data.output?.grounding);
   return vendors.map((v) => (v.sources.length ? v : { ...v, sources: fallback.slice(0, 3) }));
 }
@@ -268,7 +287,7 @@ export async function enrichVendor(v: ResearchedVendor, ctx: { city: string; ven
     const raw = data.output?.content ?? data.output?.structured;
     const found = (typeof raw === "string" ? JSON.parse(raw) : raw) as Partial<Record<"website" | "instagram" | "email" | "phone", string>> | null;
     const sources = [...v.sources];
-    for (const r of relevant.slice(0, 3)) if (!sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: r.title });
+    for (const r of relevant.slice(0, 3)) if (!sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: cleanTitle(r.title) });
 
     return {
       ...v,

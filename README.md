@@ -1,11 +1,11 @@
-# 💤 Snorlax — you nap, we plan
+# 💤 Snorlax: you nap, we plan
 
 Snorlax is a wedding-planning agent. A couple describes their wedding once, then for each vendor category
 (photography, catering, florist, decor, makeup, music) adds their specific needs and a budget. Snorlax then:
 
-1. **Researches** vendors on the web with the [Exa](https://exa.ai) Agent API — reviews, Instagram portfolios, pricing, contact details, with citations.
+1. **Researches** vendors on the web with the [Exa](https://exa.ai) Agent API: reviews, Instagram portfolios, pricing and contact details, with citations. A second focused Exa search per shortlisted vendor pulls portfolio photos and fills in missing contact info.
 2. **Shortlists** the best 3 with a transparent score (rating 40 · review volume 20 · budget fit 25 · completeness 15).
-3. **Emails** each one a detailed quote request from an [AgentMail](https://agentmail.to) inbox (`snorlax25@agentmail.to`) — every event, date, venue, guest count and requirement, anchored ~15% under budget.
+3. **Emails** each one a detailed quote request from an [AgentMail](https://agentmail.to) inbox (`snorlax25@agentmail.to`) with every event, date, venue, guest count and requirement, anchored about 15% under budget. Emails are written to sound like a person, with no em dashes.
 4. **Negotiates** the first round: watches the inbox, extracts the quote from the vendor's reply with a local **Gemma** model, and sends one counter-offer (~12% under the quote, never above budget).
 
 Everything shows up as cards: shortlist with portfolio images, contact details, sources, the extracted quote, and the full email thread.

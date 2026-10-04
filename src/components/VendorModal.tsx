@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { formatMoney } from "@/lib/money";
+import { formatMoney } from "@/lib/format";
 import type { Message, Vendor } from "@/lib/types";
 import { StatusChip } from "./StatusChip";
 import { VendorImage } from "./VendorImage";

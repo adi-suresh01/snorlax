@@ -16,7 +16,7 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-6xl px-5 py-10">
         <p className="text-sm font-semibold uppercase tracking-widest text-gold">
           {wedding.city}
-          {first ? ` · ${new Date(first).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}
+          {first ? ` · ${new Date(`${first}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}` : ""}
           {` · ${wedding.events.length} events`}
         </p>
         <h1 className="mt-1 font-serif text-5xl font-semibold">{coupleName(wedding)}</h1>

@@ -34,6 +34,12 @@ describe("scoreVendor", () => {
     expect(within).toBeGreaterThan(over);
   });
 
+  it("gives no budget credit to a vendor 50% or more over budget", () => {
+    const wayOver = scoreVendor(vendor({ rating: 5, price_low: 12000 }), 8000);
+    const unknown = scoreVendor(vendor({ rating: 5 }), 8000);
+    expect(unknown - wayOver).toBeCloseTo(12.5, 1);
+  });
+
   it("rewards more reviews and complete contact info", () => {
     const sparse = scoreVendor(vendor({ rating: 4.5 }), null);
     const rich = scoreVendor(

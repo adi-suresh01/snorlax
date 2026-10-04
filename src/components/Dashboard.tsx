@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
-import { formatMoney } from "@/lib/money";
+import { formatMoney } from "@/lib/format";
 import { StatusChip } from "./StatusChip";
 
 type Summary = {

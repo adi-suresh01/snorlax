@@ -1,4 +1,4 @@
-export type FieldType = "number" | "boolean" | "text" | "textarea" | "select" | "multiselect" | "events";
+export type FieldType = "number" | "boolean" | "text" | "textarea" | "select" | "multiselect";
 
 export type Field = {
   key: string;
@@ -19,110 +19,106 @@ export type CategoryConfig = {
   fields: Field[];
 };
 
-/** Every category also gets a budget field and an "events to cover" picker in the UI. */
+/** Every category also gets a budget field and an "events" picker in the UI. */
 export const CATEGORIES: CategoryConfig[] = [
   {
     slug: "photography",
     label: "Photography",
     emoji: "📸",
-    vendorNoun: "wedding photographer and videographer studio",
-    blurb: "Candid, traditional, films",
+    vendorNoun: "wedding photographer",
+    blurb: "Photos, video, engagement shoot",
     fields: [
-      { key: "candid_photographers", label: "Candid photographers", type: "number" },
-      { key: "traditional_photographers", label: "Traditional photographers", type: "number" },
-      { key: "videographers", label: "Videographers / cinematographers", type: "number" },
-      { key: "drone", label: "Drone coverage", type: "boolean" },
-      { key: "pre_wedding_shoot", label: "Pre-wedding shoot", type: "boolean" },
+      { key: "photographers", label: "Photographers", type: "number", help: "Lead plus any second shooters" },
+      { key: "videographers", label: "Videographers", type: "number" },
+      { key: "hours", label: "Hours of coverage", type: "number" },
+      { key: "engagement_shoot", label: "Engagement shoot", type: "boolean" },
+      { key: "drone", label: "Drone footage", type: "boolean" },
       {
         key: "deliverables",
         label: "Deliverables",
         type: "multiselect",
-        options: ["Edited photos", "Printed album", "Highlight film", "Full-length film", "Same-day edit", "Instagram reels"],
+        options: ["Online gallery", "Printed album", "Highlight film", "Full ceremony film", "Same-day edit", "Social media teasers"],
       },
-      { key: "style", label: "Style notes", type: "textarea", placeholder: "Documentary, warm tones, minimal posing…" },
+      { key: "style", label: "Style", type: "textarea", placeholder: "Candid and documentary, light and airy, not too posed" },
     ],
   },
   {
     slug: "catering",
     label: "Catering",
-    emoji: "🍛",
+    emoji: "🍽️",
     vendorNoun: "wedding caterer",
-    blurb: "Menus, live counters",
+    blurb: "Menus, bar, late-night bites",
     fields: [
-      {
-        key: "cuisines",
-        label: "Food per event",
-        type: "textarea",
-        placeholder: "Mehendi: chaat + Rajasthani; Sangeet: North Indian + Continental; Wedding: South Indian sadya…",
-      },
-      { key: "diet", label: "Dietary", type: "multiselect", options: ["Vegetarian", "Non-vegetarian", "Jain", "Vegan options", "Gluten-free options"] },
-      {
-        key: "live_counters",
-        label: "Live counters",
-        type: "multiselect",
-        options: ["Chaat", "Dosa", "Pasta", "Tandoor", "Biryani", "Mocktail bar", "Desserts / jalebi", "Paan"],
-      },
-      { key: "per_plate_target", label: "Per-plate target", type: "number", help: "In your currency" },
-      { key: "bar_service", label: "Bar service needed", type: "boolean" },
-      { key: "notes", label: "Other notes", type: "textarea" },
+      { key: "service_style", label: "Service style", type: "select", options: ["Plated", "Buffet", "Family style", "Food stations", "Heavy hors d'oeuvres"] },
+      { key: "menu", label: "Menu ideas", type: "textarea", placeholder: "Texas BBQ for dinner, a taco bar late night, passed apps during cocktail hour" },
+      { key: "dietary", label: "Dietary needs", type: "multiselect", options: ["Vegetarian", "Vegan", "Gluten-free", "Nut-free", "Kosher", "Halal"] },
+      { key: "extras", label: "Extras", type: "multiselect", options: ["Cocktail hour apps", "Late-night snacks", "Dessert table", "Cake cutting", "Coffee service"] },
+      { key: "per_person_target", label: "Target per person ($)", type: "number" },
+      { key: "bar", label: "Bar", type: "select", options: ["No bar", "Beer and wine", "Full open bar", "Signature cocktails"] },
     ],
   },
   {
     slug: "florist",
-    label: "Florist",
+    label: "Florals",
     emoji: "💐",
     vendorNoun: "wedding florist",
-    blurb: "Mandap, garlands, centerpieces",
+    blurb: "Bouquets, arch, centerpieces",
     fields: [
-      { key: "flowers", label: "Preferred flowers", type: "text", placeholder: "Marigold, roses, orchids, tuberose" },
-      { key: "palette", label: "Color palette", type: "text", placeholder: "Ivory, blush, gold" },
+      { key: "flowers", label: "Favorite flowers", type: "text", placeholder: "Garden roses, peonies, eucalyptus" },
+      { key: "palette", label: "Color palette", type: "text", placeholder: "Blush, ivory and sage" },
       {
         key: "pieces",
-        label: "Pieces needed",
+        label: "What you need",
         type: "multiselect",
-        options: ["Mandap florals", "Stage backdrop", "Varmala garlands", "Table centerpieces", "Entrance arch", "Car decoration", "Bridal floral jewelry"],
+        options: ["Bridal bouquet", "Bridesmaid bouquets", "Boutonnieres", "Ceremony arch", "Aisle arrangements", "Centerpieces", "Corsages"],
       },
-      { key: "notes", label: "Other notes", type: "textarea" },
+      { key: "notes", label: "Anything else", type: "textarea" },
     ],
   },
   {
     slug: "decor",
-    label: "Decor",
+    label: "Decor & Rentals",
     emoji: "✨",
-    vendorNoun: "wedding decorator",
-    blurb: "Themes, stage, lighting",
+    vendorNoun: "wedding decor and rentals company",
+    blurb: "Backdrops, lighting, lounges",
     fields: [
-      { key: "theme", label: "Theme", type: "text", placeholder: "Royal Rajasthani, boho garden, minimal modern…" },
+      { key: "theme", label: "Vibe", type: "text", placeholder: "Rustic barn, modern minimalist, garden party" },
       { key: "palette", label: "Color palette", type: "text" },
-      { key: "stage_mandap", label: "Stage / mandap design", type: "boolean" },
-      { key: "lighting", label: "Lighting design", type: "boolean" },
-      { key: "notes", label: "Other notes", type: "textarea" },
+      {
+        key: "items",
+        label: "What you need",
+        type: "multiselect",
+        options: ["Ceremony backdrop", "Draping", "String lights", "Lounge furniture", "Linens", "Signage", "Dance floor"],
+      },
+      { key: "notes", label: "Anything else", type: "textarea" },
     ],
   },
   {
     slug: "makeup",
-    label: "Makeup & Hair",
+    label: "Hair & Makeup",
     emoji: "💄",
-    vendorNoun: "bridal makeup artist",
-    blurb: "Bride, family, trials",
+    vendorNoun: "bridal hair and makeup artist",
+    blurb: "Bride, wedding party, trial",
     fields: [
       { key: "people", label: "Number of people", type: "number" },
-      { key: "look", label: "Look", type: "select", options: ["Natural / dewy", "Classic bridal", "Glam", "HD / airbrush"] },
-      { key: "trial", label: "Trial session", type: "boolean" },
-      { key: "notes", label: "Other notes", type: "textarea" },
+      { key: "look", label: "Look", type: "select", options: ["Natural and soft", "Classic bridal", "Full glam", "Airbrush"] },
+      { key: "trial", label: "Trial run", type: "boolean" },
+      { key: "on_site", label: "On-site the morning of", type: "boolean" },
+      { key: "notes", label: "Anything else", type: "textarea" },
     ],
   },
   {
     slug: "music",
-    label: "DJ & Music",
+    label: "Music",
     emoji: "🎶",
-    vendorNoun: "wedding DJ and live music act",
-    blurb: "DJ, band, dhol",
+    vendorNoun: "wedding DJ or band",
+    blurb: "DJ, band, ceremony music",
     fields: [
-      { key: "acts", label: "Acts", type: "multiselect", options: ["DJ", "Live band", "Dhol players", "Sufi / qawwali", "Classical ensemble", "Emcee / anchor"] },
-      { key: "hours", label: "Hours per event", type: "number" },
-      { key: "sound_lighting", label: "Sound + lighting rig needed", type: "boolean" },
-      { key: "notes", label: "Other notes", type: "textarea" },
+      { key: "acts", label: "Who you want", type: "multiselect", options: ["DJ", "Live band", "String quartet", "Acoustic guitarist", "MC"] },
+      { key: "hours", label: "Hours", type: "number" },
+      { key: "ceremony_music", label: "Ceremony music too", type: "boolean" },
+      { key: "sound_lighting", label: "Sound and dance floor lighting", type: "boolean" },
+      { key: "notes", label: "Must-plays and do-not-plays", type: "textarea" },
     ],
   },
 ];
@@ -131,16 +127,20 @@ export function getCategory(slug: string): CategoryConfig | undefined {
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
-/** Human-readable "Label: value" lines for every filled requirement. */
-export function describeRequirements(cat: CategoryConfig, req: Record<string, unknown>): string[] {
+/** One readable line per filled requirement, e.g. "Photographers: 2" or "Engagement shoot". */
+export function describeRequirements(
+  cat: CategoryConfig,
+  req: Record<string, unknown>,
+  { includeEvents = true } = {},
+): string[] {
   const lines: string[] = [];
   const events = req.events_to_cover;
-  if (Array.isArray(events) && events.length) lines.push(`Events to cover: ${events.join(", ")}`);
+  if (includeEvents && Array.isArray(events) && events.length) lines.push(`Needed for: ${events.join(", ")}`);
   for (const f of cat.fields) {
     const v = req[f.key];
-    if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) continue;
+    if (v === undefined || v === null || v === "" || v === 0 || (Array.isArray(v) && v.length === 0)) continue;
     if (f.type === "boolean") {
-      if (v === true) lines.push(`${f.label}: yes`);
+      if (v === true) lines.push(f.label);
       continue;
     }
     lines.push(`${f.label}: ${Array.isArray(v) ? v.join(", ") : String(v)}`);

@@ -13,7 +13,8 @@ export function scoreVendor(v: ResearchedVendor, budget: number | null): number 
 
   let budgetScore = 12.5;
   if (budget && v.price_low != null) {
-    budgetScore = v.price_low <= budget ? 25 : Math.max(0, 25 * (1 - (v.price_low - budget) / budget));
+    // Full credit within budget, sliding to zero at 50% over.
+    budgetScore = v.price_low <= budget ? 25 : Math.max(0, 25 * (1 - (2 * (v.price_low - budget)) / budget));
   }
 
   const completeness =

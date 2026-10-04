@@ -5,10 +5,9 @@ import { useState } from "react";
 import type { Wedding, WeddingEvent } from "@/lib/types";
 
 const DEFAULT_EVENTS: WeddingEvent[] = [
-  { name: "Mehendi", date: "", venue: "", guests: 150 },
-  { name: "Sangeet", date: "", venue: "", guests: 200 },
-  { name: "Wedding", date: "", venue: "", guests: 300 },
-  { name: "Reception", date: "", venue: "", guests: 350 },
+  { name: "Rehearsal dinner", date: "", venue: "", guests: 50 },
+  { name: "Ceremony & reception", date: "", venue: "", guests: 140 },
+  { name: "Farewell brunch", date: "", venue: "", guests: 60 },
 ];
 
 export function ProfileForm({ initial }: { initial: Wedding | null }) {
@@ -16,7 +15,6 @@ export function ProfileForm({ initial }: { initial: Wedding | null }) {
   const [partner1, setPartner1] = useState(initial?.partner1 ?? "");
   const [partner2, setPartner2] = useState(initial?.partner2 ?? "");
   const [city, setCity] = useState(initial?.city ?? "");
-  const [currency, setCurrency] = useState(initial?.currency ?? "INR");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [events, setEvents] = useState<WeddingEvent[]>(initial?.events?.length ? initial.events : DEFAULT_EVENTS);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +30,7 @@ export function ProfileForm({ initial }: { initial: Wedding | null }) {
     const res = await fetch("/api/profile", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ partner1, partner2, city, currency, notes, events }),
+      body: JSON.stringify({ partner1, partner2, city, notes, events }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -45,23 +43,16 @@ export function ProfileForm({ initial }: { initial: Wedding | null }) {
     <form onSubmit={save} className="space-y-6">
       <section className="card grid gap-4 p-6 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="p1">Bride / Partner 1</label>
-          <input id="p1" className="input" required value={partner1} onChange={(e) => setPartner1(e.target.value)} placeholder="Aditi" />
+          <label className="label" htmlFor="p1">Partner 1</label>
+          <input id="p1" className="input" required value={partner1} onChange={(e) => setPartner1(e.target.value)} placeholder="Emma" />
         </div>
         <div>
-          <label className="label" htmlFor="p2">Groom / Partner 2</label>
-          <input id="p2" className="input" required value={partner2} onChange={(e) => setPartner2(e.target.value)} placeholder="Rohan" />
+          <label className="label" htmlFor="p2">Partner 2</label>
+          <input id="p2" className="input" required value={partner2} onChange={(e) => setPartner2(e.target.value)} placeholder="James" />
         </div>
-        <div>
+        <div className="sm:col-span-2">
           <label className="label" htmlFor="city">City</label>
-          <input id="city" className="input" required value={city} onChange={(e) => setCity(e.target.value)} placeholder="Udaipur" />
-        </div>
-        <div>
-          <label className="label" htmlFor="currency">Currency</label>
-          <select id="currency" className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="INR">INR ₹</option>
-            <option value="USD">USD $</option>
-          </select>
+          <input id="city" className="input" required value={city} onChange={(e) => setCity(e.target.value)} placeholder="Austin, TX" />
         </div>
       </section>
 
@@ -93,7 +84,7 @@ export function ProfileForm({ initial }: { initial: Wedding | null }) {
 
       <section className="card p-6">
         <label className="label" htmlFor="notes">Anything vendors should know?</label>
-        <textarea id="notes" className="input min-h-24" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Destination wedding, families flying in from abroad, eco-friendly preferred…" />
+        <textarea id="notes" className="input min-h-24" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Outdoor ceremony, lots of guests flying in, we love anything local…" />
       </section>
 
       {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
