@@ -2,7 +2,9 @@ import { env } from "./env";
 
 type ChatOpts = { json?: boolean; maxTokens?: number; timeoutMs?: number; temperature?: number };
 
-/** One OpenAI-compatible chat call against the local llama-server (Gemma). Thinking is disabled for speed. */
+const isLocal = () => /localhost|127\.0\.0\.1/.test(env.llmBaseUrl);
+
+/** One OpenAI-compatible chat call: local llama-server (Gemma) or a hosted API like Groq, picked by LLM_BASE_URL. */
 async function chatOnce(system: string, user: string, opts: ChatOpts): Promise<string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (env.llmApiKey) headers.authorization = `Bearer ${env.llmApiKey}`;
@@ -19,7 +21,8 @@ async function chatOnce(system: string, user: string, opts: ChatOpts): Promise<s
       ],
       max_tokens: opts.maxTokens ?? 700,
       temperature: opts.temperature ?? 0.4,
-      chat_template_kwargs: { enable_thinking: false },
+      // llama.cpp-only switch to skip Gemma's thinking phase; hosted APIs (Groq) don't accept it.
+      ...(isLocal() ? { chat_template_kwargs: { enable_thinking: false } } : {}),
       ...(opts.json ? { response_format: { type: "json_object" } } : {}),
     }),
   });
