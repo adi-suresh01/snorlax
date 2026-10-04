@@ -2,7 +2,7 @@ import { listReceived, getMessage, replyToMessage, sendMessage } from "./agentma
 import { describeRequirements, getCategory } from "./categories";
 import { coupleName, counterTarget, draftCounter, draftQuoteRequest, extractQuote } from "./emails";
 import { env } from "./env";
-import { researchVendors } from "./exa";
+import { enrichVendor, researchVendors } from "./exa";
 import { fetchOgImage } from "./images";
 import { formatMoney } from "./money";
 import * as repo from "./repo";
@@ -57,20 +57,26 @@ async function runPipeline(requestId: string) {
     await log("research", `Reviewed ${found.length} candidates: ${found.map((v) => v.name).join(", ")}`);
 
     // 2. Shortlist
-    const shortlist = pickShortlist(found, req.budget, 3);
-    await Promise.all(
-      shortlist.map(async (v) => {
-        if (v.images.length) return;
-        const og = await fetchOgImage(v.website);
-        if (og) v.images = [og];
+    const picked = pickShortlist(found, req.budget, 3);
+    await log("shortlist", `Pulling portfolios and contact details for ${picked.map((v) => v.name).join(", ")}…`);
+    const enriched = await Promise.all(
+      picked.map(async (v) => {
+        const e = await enrichVendor(v, { city: wedding.city, vendorNoun: category.vendorNoun });
+        if (!e.images.length) {
+          const og = await fetchOgImage(e.website);
+          if (og) e.images = [og];
+        }
+        return e;
       }),
     );
     const saved = [];
     for (const v of found) {
-      const isShort = shortlist.includes(v);
-      const row = await repo.insertVendor(requestId, v, scoreVendor(v, req.budget), isShort);
-      if (isShort) saved.push(row);
+      const i = picked.indexOf(v);
+      const row = i >= 0 ? enriched[i] : v;
+      const inserted = await repo.insertVendor(requestId, row, scoreVendor(row, req.budget), i >= 0);
+      if (i >= 0) saved.push(inserted);
     }
+    saved.sort((a, b) => b.score - a.score);
     await repo.setRequestStatus(requestId, "shortlisted");
     await log(
       "shortlist",

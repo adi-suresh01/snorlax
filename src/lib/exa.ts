@@ -202,6 +202,88 @@ async function searchResearch(ctx: ResearchContext, type: "deep" | "auto"): Prom
   return vendors.map((v) => (v.sources.length ? v : { ...v, sources: fallback.slice(0, 3) }));
 }
 
+const IMAGE_EXT = /\.(jpe?g|png|webp)(\?|$)/i;
+const NOT_PORTFOLIO = /(icon|logo|avatar|sprite|placeholder|banner-ad|question|vector|badge|\/20X\/|\/50X\/|\.svg)/i;
+const tokens = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((t) => t.length >= 4);
+
+/** Keep real photos, upsize known CDN thumbnails, dedupe by filename. */
+export function pickPortfolioImages(urls: string[], max = 6): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of urls) {
+    if (!raw || !raw.startsWith("http") || !IMAGE_EXT.test(raw) || NOT_PORTFOLIO.test(raw)) continue;
+    const url = raw.replace(/\/resized\/\d+X\//, "/resized/800X/");
+    // WordPress serves resized copies as name-683x1024.jpg; treat them as the same photo.
+    const file = (url.split("?")[0].split("/").pop() ?? url).replace(/-\d+x\d+(?=\.\w+$)/, "");
+    if (seen.has(file)) continue;
+    seen.add(file);
+    out.push(url);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+type ExaResult = { url: string; title?: string; image?: string; extras?: { imageLinks?: string[] } };
+
+/**
+ * One focused search per shortlisted vendor: portfolio photos via `extras.imageLinks`
+ * and missing contact fields via a compact `outputSchema`. Never throws; returns the vendor unchanged on failure.
+ */
+export async function enrichVendor(v: ResearchedVendor, ctx: { city: string; vendorNoun: string }): Promise<ResearchedVendor> {
+  try {
+    const res = await fetch(`${EXA}/search`, {
+      method: "POST",
+      headers: headers(),
+      signal: AbortSignal.timeout(45_000),
+      body: JSON.stringify({
+        query: `${v.name} ${ctx.vendorNoun} ${ctx.city} portfolio`,
+        numResults: 5,
+        systemPrompt: `Only report contact details that belong to ${v.name} in ${ctx.city} itself, never a directory, marketplace or a different business. Leave a field out when it cannot be verified.`,
+        outputSchema: {
+          type: "object",
+          properties: {
+            website: { type: "string", format: "uri" },
+            instagram: { type: "string", description: "Instagram profile URL or @handle of this vendor" },
+            email: { type: "string", format: "email" },
+            phone: { type: "string", format: "phone" },
+          },
+        },
+        contents: { highlights: true, extras: { imageLinks: 8 } },
+      }),
+    });
+    if (!res.ok) return v;
+    const data = await res.json();
+    const results: ExaResult[] = data.results || [];
+    const nameTokens = tokens(v.name);
+    const aboutVendor = (r: ExaResult) => {
+      const hay = `${r.title ?? ""} ${r.url}`.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return nameTokens.some((t) => hay.includes(t));
+    };
+    const relevant = results.filter(aboutVendor);
+    const images = pickPortfolioImages([
+      ...v.images,
+      ...relevant.flatMap((r) => [r.image ?? "", ...(r.extras?.imageLinks ?? [])]),
+    ]);
+
+    const raw = data.output?.content ?? data.output?.structured;
+    const found = (typeof raw === "string" ? JSON.parse(raw) : raw) as Partial<Record<"website" | "instagram" | "email" | "phone", string>> | null;
+    const sources = [...v.sources];
+    for (const r of relevant.slice(0, 3)) if (!sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: r.title });
+
+    return {
+      ...v,
+      images,
+      website: v.website ?? str(found?.website),
+      instagram: v.instagram ?? normalizeInstagram(str(found?.instagram)),
+      email: v.email ?? str(found?.email),
+      phone: v.phone ?? str(found?.phone),
+      sources,
+    };
+  } catch {
+    return v;
+  }
+}
+
 /** Agent API first (deep, multi-source research); fall back to deep search, then auto search. */
 export async function researchVendors(
   ctx: ResearchContext,
